@@ -15,6 +15,10 @@
   --incoming-chat-bg: #444654;
   --outgoing-chat-border: #343541;
   --incoming-chat-border: #444654;
+  --suggestion-box-bg: #97979700; /* Default background color */
+  --suggestion-box-border: #d1d1d1; /* Default border color */
+  --suggestion-text-color: #FFFFFF; /* Default text color */
+
 }
 .light-mode {
   --text-color: #343541;
@@ -25,6 +29,9 @@
   --incoming-chat-bg: #F7F7F8;
   --outgoing-chat-border: #FFFFFF;
   --incoming-chat-border: #D9D9E3;
+  --suggestion-box-bg: #e0e0e0; /* Light mode background color */
+  --suggestion-box-border: #someothercolor; /* Light mode border color */
+  --suggestion-text-color: #333333; /* Light mode text color */
 }
 body {
   background: var(--outgoing-chat-bg);
@@ -178,7 +185,7 @@ span.material-symbols-rounded {
   padding: 15px 45px 15px 20px;
   color: var(--text-color);
   font-size: 1rem;
-  border-radius: 4px;
+  border-radius: 30px;
   max-height: 250px;
   overflow-y: auto;
   background: var(--incoming-chat-bg);
@@ -191,7 +198,7 @@ span.material-symbols-rounded {
   width: 55px;
   height: 55px;
   display: flex;
-  border-radius: 4px;
+  border-radius: 30px;
   font-size: 1.35rem;
   align-items: center;
   justify-content: center;
@@ -256,37 +263,38 @@ span.material-symbols-rounded {
     font-size: 1.25rem!important;
   }
 }
-/* Sidebar Styles */
-.chat-history-sidebar {
-  position: fixed;
-  left: -250px; /* Start off-screen to the left */
-  top: 0;
-  height: 100%;
-  width: 250px; /* Adjust as needed */
-  background-color: #f3f3f3; /* Adjust background color */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
-  overflow-y: auto;
-  transition: left 0.3s ease;
-  z-index: 2; /* Ensure sidebar is above other elements */
+
+
+#suggestions-container {
+  padding: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  position: fixed; /* Keep it fixed at the bottom */
+  bottom: 120px; /* Increase this value to move the container up */
+  left: 0;
+  right: 0; /* This ensures it stretches across the screen */
+  z-index: 1000; /* Ensure it's above other elements */
+  margin: 0 auto; /* Center the container */
 }
 
-.chat-history-sidebar.open {
-  left: 0; /* Slide in */
-}
-
-#sidebar-toggle {
-  position: fixed;
-  top: 20px;
-  left: 0; /* Position the toggle button */
+.suggestion-btn {
+  background-color: #97979700;
+  border: 1px solid #d1d1d1;
+  border-radius: 30px;
+  padding: 15px 17px;
   cursor: pointer;
-  font-size: 1.3rem;
-  color: var(--icon-color);
-  z-index: 3;
-  transition: left 0.3s ease;
+  color: white;
+  color: var(--suggestion-text-color); /* Apply the text color variable */
+  background-color: var(--suggestion-box-bg);
+  border: 1px solid var(--suggestion-box-border);
 }
 
-#sidebar-toggle.open {
-  left: 250px; /* Move with the sidebar */
+.suggestion-btn:hover {
+  background-color: #e0e0e0;
+  background-color: var(--icon-hover-bg); /* Use your appropriate hover background color */
 }
 
 /* Responsive adjustments */

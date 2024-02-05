@@ -1,3 +1,43 @@
+document.addEventListener("DOMContentLoaded", () => {
+    loadDataFromLocalstorage();
+    displayInitialSuggestions(); // This function will now target the static container
+});
+
+const displayInitialSuggestions = () => {
+    const suggestions = [
+        "Hjælp mig igang med Amazon...",
+        "Hvad er nyt...",
+        "Hvad er jeres kompetencer..",
+        // Add more suggestions as desired
+    ];
+
+    const suggestionsContainer = document.createElement("div");
+    suggestionsContainer.classList.add("suggestions-container");
+    suggestionsContainer.id = "suggestions-container"; // Adding an ID for easy reference
+
+    suggestions.forEach(suggestion => {
+        const suggestionBtn = document.createElement("button");
+        suggestionBtn.textContent = suggestion;
+        suggestionBtn.classList.add("suggestion-btn");
+        suggestionBtn.onclick = () => {
+            chatInput.value = suggestion; // Pre-fill chat input with the suggestion
+            handleOutgoingChat(); // Simulate sending the message
+            
+            // Remove the suggestions container after a suggestion is chosen
+            const containerToRemove = document.getElementById('suggestions-container');
+            if (containerToRemove) {
+                containerToRemove.remove();
+            }
+        };
+        suggestionsContainer.appendChild(suggestionBtn);
+    });
+
+    // Append the suggestionsContainer to a specific location in your chat interface,
+    // depending on your page structure. For example, at the end of the chatContainer:
+    chatContainer.appendChild(suggestionsContainer); // Adjust based on your layout
+};
+
+
 const chatInput = document.querySelector("#chat-input");
 const sendButton = document.querySelector("#send-btn");
 const chatContainer = document.querySelector(".chat-container");
@@ -14,8 +54,9 @@ const loadDataFromLocalstorage = () => {
     themeButton.innerText = document.body.classList.contains("light-mode") ? "dark_mode" : "light_mode";
 
     const defaultText = `<div class="default-text">
-                            <h1>Your Chines AI Teacher</h1>
-                            <p>Start a conversation and explore the power of AI.<br> Your chat history will be displayed here.</p>
+                            <h1>Nørgård Mikkelsen</h1>
+                            <p>Velkommen til Nørgård Mikkelsen-guide. <br>
+                            Her finder du information og ressourcer om Nørgård Mikkelsen og vores produkter.</p>
                         </div>`
 
     chatContainer.innerHTML = localStorage.getItem("all-chats") || defaultText;
@@ -31,7 +72,7 @@ const createChatElement = (content, className) => {
 }
 
 const getChatResponse = async (incomingChatDiv) => {
-    const API_URL = "https://ai-teacher.raheesahmed.repl.co/chat";
+    const API_URL = "http://localhost:3000/chat";
     const pElement = document.createElement("p");
 
     // Define the properties and data for the API request
@@ -44,6 +85,7 @@ const getChatResponse = async (incomingChatDiv) => {
             message: userText
         })
     }
+
 
     // Send POST request to your Flask server, get response and set the response as paragraph element text
     try {
@@ -113,9 +155,10 @@ const handleOutgoingChat = () => {
     setTimeout(showTypingAnimation, 500);
 }
 
+
 deleteButton.addEventListener("click", () => {
     // Remove the chats from local storage and call loadDataFromLocalstorage function
-    if(confirm("Are you sure you want to delete all the chats?")) {
+    if(confirm("Er du sikker på at du vil slette samtalen?")) {
         localStorage.removeItem("all-chats");
         loadDataFromLocalstorage();
     }
@@ -148,21 +191,6 @@ chatInput.addEventListener("keydown", (e) => {
 loadDataFromLocalstorage();
 sendButton.addEventListener("click", handleOutgoingChat);
 
-
-
-
-
-// Sidebar toggle functionality
-document.getElementById('sidebar-toggle').addEventListener('click', function() {
-    document.getElementById('chat-history-sidebar').classList.toggle('open');
-    this.classList.toggle('open');
-});
-
-// Function to update chat history in the sidebar
-const updateChatHistorySidebar = () => {
-    const chatHistoryContent = document.querySelector('.chat-history-content');
-    chatHistoryContent.innerHTML = chatContainer.innerHTML;
-};
 
 // Example: Call updateChatHistorySidebar when a new chat is added
 // Integrate this into your existing chat handling functions

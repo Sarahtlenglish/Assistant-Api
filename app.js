@@ -2,6 +2,8 @@ import express from "express";
 import bodyParser from "body-parser";
 import OpenAI from "openai";
 import fs from "fs";
+import path from "path"; // Add this import for serving static files
+import cors from "cors"; // Add this import for CORS support
 import dotenv from "dotenv";
 import morgan from "morgan";
 
@@ -12,26 +14,9 @@ app.use(bodyParser.json());
 app.use(morgan("combined"));
 app.use(express.static('static'));
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI(apiKey);
-
-let assistant_id;
-
-// Create an Assistant
-async function createAssistant() {
-  const assistantResponse = await openai.beta.assistants.create({
-    name: "Professional Chinese Teacher", // adjust name as per requirement
-    instructions: "You are a professional Chinese Teacher capable of teaching Chinese, answering related questions, and creating original content.Always Behave Like Professional and friendly chinese teacher.",
-    tools: [{ type: "code_interpreter" }], // adjust tools as per requirement
-    model: "gpt-4-1106-preview", // or any other GPT-3.5 or GPT-4 model
-  });
-  assistant_id = assistantResponse.id;
-  console.log(`Assistant ID: ${assistant_id}`);
-}
-
-createAssistant();
-app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
-  });
+const assistant_id = process.env.ASSISTANT_ID; // Read the assistant_id from environment variable
+const openai = new OpenAI({ apiKey: apiKey });
+;
 
 // Endpoint to handle chat
 app.post("/chat", async (req, res) => {
@@ -80,6 +65,8 @@ res.json({ response });
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
