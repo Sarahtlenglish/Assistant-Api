@@ -18,6 +18,8 @@ const openai = new OpenAI({ apiKey: apiKey });
 
 var base = new Airtable({apiKey: process.env.AIRTABLE_BEARER_TOKEN}).base(process.env.AIRTABLE_BASE_ID);
 
+
+
 // Endpoint to handle chat
 app.post("/chat", async (req, res) => {
   try {
@@ -64,28 +66,41 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Function to get or create a thread ID for a session
-async function getOrCreateThreadIdForSession(sessionId) {
+// Function to get or create a thread ID for a session and save conversation
+async function getOrCreateThreadIdForSession(sessionId, userMessage) {
   let threadId = null;
+  // Current timestamp
+  const timestamp = new Date().toISOString();
+
   // Search for an existing conversation for the session
-  const records = await base('Conversations').select({
+  const records = await base('Threads').select({
     filterByFormula: `{SessionID} = '${sessionId}'`
   }).firstPage();
 
   if (records.length > 0) {
-    // If a conversation exists, use the stored thread ID
+    // Use the existing thread ID
     threadId = records[0].fields.ThreadID;
+    // Update the thread with the new message and timestamp
+    await base('Threads').update(records[0].id, {
+      "Message": `[${timestamp}] ${userMessage}`,
+      "Timestamp": timestamp
+    });
   } else {
-    // If no conversation exists, create a new thread
+    // Create a new thread and store it with the session ID, message, and timestamp
     const threadResponse = await openai.beta.threads.create();
     threadId = threadResponse.id;
-    // Save the new conversation with the session ID and thread ID in Airtable
-    await base('Conversations').create([{ "fields": { "SessionID": sessionId, "ThreadID": threadId } }]);
+    await base('Threads').create([{
+      "fields": {
+        "SessionID": sessionId,
+        "ThreadID": threadId,
+        "Message": userMessage,
+        "Timestamp": timestamp
+      }
+    }]);
   }
   return threadId;
 }
 
-// ... (rest of your code, including the Airtable 'Leads' handling)
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
