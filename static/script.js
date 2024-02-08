@@ -80,7 +80,7 @@ const createChatElement = (content, className) => {
 }
 
 const getChatResponse = async (incomingChatDiv) => {
-    const API_URL = "/chat"; // Changed to relative URL for proper routing
+    const API_URL = "http://localhost:3000/chat";
     const pElement = document.createElement("p");
 
     const requestOptions = {
@@ -90,7 +90,7 @@ const getChatResponse = async (incomingChatDiv) => {
         },
         body: JSON.stringify({
             message: userText,
-            sessionId: localStorage.getItem('sessionId') // Getting sessionId from localStorage
+            sessionId: localStorage.getItem('sessionId') // Include the sessionId in the request
         })
     };
 
