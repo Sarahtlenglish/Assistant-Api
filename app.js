@@ -7,28 +7,79 @@ import Airtable from 'airtable';
 
 dotenv.config();
 
+// Configure Airtable
+Airtable.configure({
+  endpointUrl: 'https://api.airtable.com',
+  apiKey: process.env.AIRTABLE_BEARER_TOKEN,
+});
+const base = Airtable.base(process.env.AIRTABLE_BASE_ID);
+
 const app = express();
 app.use(bodyParser.json());
 app.use(morgan("combined"));
 app.use(express.static('static')); // Serve static files
 
 const apiKey = process.env.OPENAI_API_KEY;
-const assistant_id = process.env.ASSISTANT_ID; // Your Assistant ID
+const assistant_id = process.env.ASSISTANT_ID;
 const openai = new OpenAI({ apiKey: apiKey });
 
-var base = new Airtable({apiKey: process.env.AIRTABLE_BEARER_TOKEN}).base(process.env.AIRTABLE_BASE_ID);
+// Function to manage Airtable records
+const manageAirtableRecord = async (sessionId, userMessage, assistantResponse) => {
+  const threadId = `thread_${sessionId}`;
+  const timestamp = new Date().toISOString();
+  const messageContent = `[${timestamp}] User: ${userMessage}\n[${timestamp}] Assistant: ${assistantResponse}`;
 
+  // Retrieve the record for the session if it exists
+  const records = await base('Threads').select({
+    filterByFormula: `{SessionID} = '${sessionId}'`
+  }).firstPage();
+
+  const existingRecord = records.length > 0 ? records[0] : null;
+
+  if (existingRecord) {
+    // Append the new message to the existing conversation
+    const updatedConversation = `${existingRecord.fields.Conversation}\n${messageContent}`;
+
+    // Update the existing record
+    try {
+      await base('Threads').update(existingRecord.id, {
+        "Conversation": updatedConversation
+      });
+      console.log('Airtable record updated successfully.');
+    } catch (error) {
+      console.error('Error updating Airtable record:', error);
+    }
+  } else {
+    // Create a new record
+    try {
+      await base('Threads').create([{
+        fields: {
+          "ThreadID": threadId,
+          "Timestamp": timestamp,
+          "SessionID": sessionId,
+          "Message": userMessage,
+          "Conversation": messageContent
+        }
+      }]);
+      console.log('New Airtable record created successfully.');
+    } catch (error) {
+      console.error('Error creating Airtable record:', error);
+    }
+  }
+};
 
 // Endpoint to handle chat
 app.post("/chat", async (req, res) => {
   try {
-    if (!req.body.message || !req.body.sessionId) {
-      return res.status(400).json({ error: "Message and SessionId fields are required" });
+    if (!req.body.message) {
+      return res.status(400).json({ error: "Message field is required" });
     }
-    const { message: userMessage, sessionId } = req.body;
+    const userMessage = req.body.message;
+    const sessionId = req.body.sessionId; // Make sure this is being sent from your client
 
-    // Retrieve or create a thread ID for the session
-    let threadId = await getOrCreateThreadIdForSession(sessionId);
+    // Create a Thread
+    const threadResponse = await openai.beta.threads.create();
+    const threadId = threadResponse.id;
 
     // Add a Message to a Thread
     await openai.beta.threads.messages.create(threadId, {
@@ -41,13 +92,14 @@ app.post("/chat", async (req, res) => {
       assistant_id: assistant_id,
     });
 
-    // Check the Run status and retrieve the response
+    // Check the Run status
     let run = await openai.beta.threads.runs.retrieve(threadId, runResponse.id);
     while (run.status !== "completed") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       run = await openai.beta.threads.runs.retrieve(threadId, runResponse.id);
     }
 
+    // Display the Assistant's Response
     const messagesResponse = await openai.beta.threads.messages.list(threadId);
     const assistantResponses = messagesResponse.data.filter(msg => msg.role === 'assistant');
     const response = assistantResponses.map(msg => 
@@ -57,87 +109,16 @@ app.post("/chat", async (req, res) => {
         .join('\n')
     ).join('\n');
 
-     // Call appendMessageToConversation right here
-    await appendMessageToConversation(sessionId, userMessage, response);
+    // Add or update conversation in Airtable
+    manageAirtableRecord(sessionId, userMessage, response);
 
-    // Respond to the user
     res.json({ response });
+
   } catch (error) {
     console.error("Error processing chat:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// Function to get or create a thread ID for a session and save conversation
-async function getOrCreateThreadIdForSession(sessionId, userMessage) {
-  let threadId = null;
-  // Current timestamp
-  const timestamp = new Date().toISOString();
-
-  // Search for an existing conversation for the session
-  const records = await base('Threads').select({
-    filterByFormula: `{SessionID} = '${sessionId}'`
-  }).firstPage();
-
-  if (records.length > 0) {
-    // Use the existing thread ID
-    threadId = records[0].fields.ThreadID;
-    // Update the thread with the new message and timestamp
-    await base('Threads').update(records[0].id, {
-      "Message": `[${timestamp}] ${userMessage}`,
-      "Timestamp": timestamp
-    });
-  } else {
-    // Create a new thread and store it with the session ID, message, and timestamp
-    const threadResponse = await openai.beta.threads.create();
-    threadId = threadResponse.id;
-    await base('Threads').create([{
-      "fields": {
-        "SessionID": sessionId,
-        "ThreadID": threadId,
-        "Message": userMessage,
-        "Timestamp": timestamp
-      }
-    }]);
-  }
-  return threadId;
-}
-
-// Function to append messages to the "Conversation" field for a session
-async function appendMessageToConversation(sessionId, userMessage, assistantResponse) {
-  // Retrieve the record for the session
-  const records = await base('Threads').select({
-    filterByFormula: `{SessionID} = '${sessionId}'`
-  }).firstPage();
-
-  if (records.length > 0) {
-    // Existing conversation, append the new messages
-    let record = records[0];
-    let existingConversation = record.fields.Conversation || "";
-    // Format how you want the conversation to be stored, e.g., user message followed by assistant response
-    existingConversation += `\nUser: ${userMessage}\nAssistant: ${assistantResponse}`;
-
-    // Update the "Conversation" field
-    await base('Threads').update([{
-      id: record.id,
-      fields: {
-        "Conversation": existingConversation
-      }
-    }]);
-  } else {
-    // No existing conversation, create a new record with the initial messages
-    await base('Threads').create([{
-      "fields": {
-        "SessionID": sessionId,
-        "Conversation": `User: ${userMessage}\nAssistant: ${assistantResponse}` // Initialize conversation
-      }
-    }]);
-
-  }
-}
-
-
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
